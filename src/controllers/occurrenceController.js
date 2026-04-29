@@ -69,7 +69,7 @@ export const getOccurrences = async (req, res) => {
 // GET BY ID
 export const getOccurrenceById = async (req, res) => {
   try {
-    const id = Number(req.params.id); // garante número
+    const id = req.params.id;
 
     if (useMock) {
       const occurrence = occurrences.find(o => o.id === id);
@@ -90,7 +90,7 @@ export const getOccurrenceById = async (req, res) => {
 // UPDATE
 export const updateOccurrence = async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = req.params.id;
 
     if (useMock) {
       const index = occurrences.findIndex(o => o.id === id);
@@ -119,7 +119,7 @@ export const updateOccurrence = async (req, res) => {
 // DELETE
 export const deleteOccurrence = async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = req.params.id;
 
     if (useMock) {
       const filtered = occurrences.filter(o => o.id !== id);
