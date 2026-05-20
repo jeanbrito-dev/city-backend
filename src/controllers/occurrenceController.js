@@ -1,8 +1,15 @@
 import { prisma } from "../lib/prisma.js";
 import { occurrences } from "../data/occurrences.js";
+import { commentsByOccurrence } from "./commentController.js";
 import { v4 as uuidv4 } from "uuid";
 
 const useMock = true; // true = usa array | false = usa banco
+
+// Helper: calcula total de comentários + replies de uma ocorrência
+const getCommentCount = (occurrenceId) => {
+  const comments = commentsByOccurrence[occurrenceId] || [];
+  return comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
+};
 
 // CREATE
 export const createOccurrence = async (req, res) => {
@@ -11,12 +18,13 @@ export const createOccurrence = async (req, res) => {
       const newOccurrence = {
         id: uuidv4(), // gera id único simples
         createdAt: new Date(), // simula campo do banco
+        likedBy: [], // array de userIds que curtiram
         ...req.body,
       };
 
       occurrences.push(newOccurrence); // salva no array (memória)
 
-      return res.json(newOccurrence);
+      return res.json({ ...newOccurrence, likes: 0, comentarios: 0 });
     }
 
     const occurrence = await prisma.occurrence.create({
@@ -49,7 +57,15 @@ export const getOccurrences = async (req, res) => {
       // ordena por data (mais recente primeiro)
       data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-      return res.json(data);
+      // inclui contagem de comentários em cada item
+      const withCounts = data.map(o => ({
+        ...o,
+        likes: (o.likedBy || []).length,
+        likedBy: o.likedBy || [],
+        comentarios: getCommentCount(o.id),
+      }));
+
+      return res.json(withCounts);
     }
 
     const data = await prisma.occurrence.findMany({
@@ -73,8 +89,16 @@ export const getOccurrenceById = async (req, res) => {
 
     if (useMock) {
       const occurrence = occurrences.find(o => o.id === id);
+      if (!occurrence) {
+        return res.status(404).json({ error: "Ocorrência não encontrada" });
+      }
 
-      return res.json(occurrence);
+      return res.json({
+        ...occurrence,
+        likes: (occurrence.likedBy || []).length,
+        likedBy: occurrence.likedBy || [],
+        comentarios: getCommentCount(id),
+      });
     }
 
     const occurrence = await prisma.occurrence.findUnique({
@@ -137,5 +161,46 @@ export const deleteOccurrence = async (req, res) => {
     res.json({ message: "Deletado com sucesso" });
   } catch {
     res.status(500).json({ error: "Erro ao deletar ocorrência" });
+  }
+};
+
+// LIKE / UNLIKE (por usuário)
+export const toggleLike = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId é obrigatório" });
+    }
+
+    if (useMock) {
+      const occurrence = occurrences.find(o => o.id === id);
+      if (!occurrence) {
+        return res.status(404).json({ error: "Ocorrência não encontrada" });
+      }
+
+      if (!occurrence.likedBy) occurrence.likedBy = [];
+
+      const alreadyLiked = occurrence.likedBy.includes(userId);
+
+      if (alreadyLiked) {
+        // remove o like
+        occurrence.likedBy = occurrence.likedBy.filter(uid => uid !== userId);
+      } else {
+        // adiciona o like
+        occurrence.likedBy.push(userId);
+      }
+
+      return res.json({
+        likes: occurrence.likedBy.length,
+        liked: !alreadyLiked,
+        likedBy: occurrence.likedBy,
+      });
+    }
+
+    res.status(501).json({ error: "Não implementado para banco" });
+  } catch {
+    res.status(500).json({ error: "Erro ao curtir ocorrência" });
   }
 };

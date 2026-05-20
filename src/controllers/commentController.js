@@ -1,6 +1,6 @@
 // Armazena comentários por ocorrência em memória
 // Estrutura: { [occurrenceId]: [ { id, autor, texto, replies: [...] } ] }
-const commentsByOccurrence = {};
+export const commentsByOccurrence = {};
 
 // GET comentários de uma ocorrência
 export const getComments = (req, res) => {
