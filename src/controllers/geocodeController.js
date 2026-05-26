@@ -34,3 +34,28 @@ export const reverseGeocode = async (req, res) => {
     res.status(500).json({ error: "Erro interno ao buscar endereço" });
   }
 };
+
+// geocodeController.js
+
+export const searchAddress = async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`,
+      {
+        headers: {
+          "User-Agent": "Unicity/1.0 (unicity@gmail.com)",
+        },
+      },
+    );
+
+    const data = await response.json();
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({
+      error: "Erro ao buscar endereço",
+    });
+  }
+};

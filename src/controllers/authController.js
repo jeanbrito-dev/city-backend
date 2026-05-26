@@ -13,21 +13,22 @@ export const login = async (req, res) => {
   try {
     const { email, senha } = req.body;
 
-    // valida campos
     if (!email || !senha) {
-      return res.status(400).json({ error: "Email e senha obrigatórios" });
+      return res.status(400).json({
+        error: "Email e senha obrigatórios",
+      });
     }
 
-    // busca usuário
     const user = users.find(
       (u) => u.email === email && u.senha === senha
     );
 
     if (!user) {
-      return res.status(401).json({ error: "Credenciais inválidas" });
+      return res.status(401).json({
+        error: "Credenciais inválidas",
+      });
     }
 
-    // simula "login"
     return res.json({
       message: "Login realizado com sucesso",
       user: {
@@ -37,24 +38,30 @@ export const login = async (req, res) => {
       },
     });
 
-  } catch (err) {
-    res.status(500).json({ error: "Erro no login" });
+  } catch {
+    res.status(500).json({
+      error: "Erro no login",
+    });
   }
 };
 
-// REGISTER (opcional)
+// REGISTER
 export const register = async (req, res) => {
   try {
     const { nome, email, senha } = req.body;
 
     if (!nome || !email || !senha) {
-      return res.status(400).json({ error: "Preencha todos os campos" });
+      return res.status(400).json({
+        error: "Preencha todos os campos",
+      });
     }
 
     const exists = users.find((u) => u.email === email);
 
     if (exists) {
-      return res.status(400).json({ error: "Usuário já existe" });
+      return res.status(400).json({
+        error: "Usuário já existe",
+      });
     }
 
     const newUser = {
@@ -76,6 +83,109 @@ export const register = async (req, res) => {
     });
 
   } catch {
-    res.status(500).json({ error: "Erro ao registrar" });
+    res.status(500).json({
+      error: "Erro ao registrar",
+    });
+  }
+};
+
+// GET USER
+export const getUser = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const user = users.find((u) => u.id === id);
+
+    if (!user) {
+      return res.status(404).json({
+        error: "Usuário não encontrado",
+      });
+    }
+
+    res.json({
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+    });
+
+  } catch {
+    res.status(500).json({
+      error: "Erro ao buscar usuário",
+    });
+  }
+};
+
+// UPDATE USER
+export const updateUser = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const index = users.findIndex((u) => u.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({
+        error: "Usuário não encontrado",
+      });
+    }
+
+    const { nome, email, senha } = req.body;
+
+    // impede email duplicado
+    const emailExists = users.find(
+      (u) => u.email === email && u.id !== id
+    );
+
+    if (emailExists) {
+      return res.status(400).json({
+        error: "Email já está em uso",
+      });
+    }
+
+    users[index] = {
+      ...users[index],
+      nome: nome || users[index].nome,
+      email: email || users[index].email,
+      senha: senha || users[index].senha,
+    };
+
+    res.json({
+      message: "Usuário atualizado",
+      user: {
+        id: users[index].id,
+        nome: users[index].nome,
+        email: users[index].email,
+      },
+    });
+
+  } catch {
+    res.status(500).json({
+      error: "Erro ao atualizar usuário",
+    });
+  }
+};
+
+// DELETE USER
+export const deleteUser = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+
+    const index = users.findIndex((u) => u.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({
+        error: "Usuário não encontrado",
+      });
+    }
+
+    users.splice(index, 1);
+
+    res.json({
+      message: "Usuário deletado com sucesso",
+    });
+
+  } catch {
+    res.status(500).json({
+      error: "Erro ao deletar usuário",
+    });
   }
 };

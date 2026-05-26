@@ -3,17 +3,26 @@ import {
   getComments,
   addComment,
   addReply,
+  updateComment,
+  deleteComment,
+  updateReply,
+  deleteReply,
 } from "../controllers/commentController.js";
 
 const router = Router();
 
-// GET /comments/:occurrenceId — lista comentários da ocorrência
 router.get("/:occurrenceId", getComments);
 
-// POST /comments/:occurrenceId — novo comentário
 router.post("/:occurrenceId", addComment);
 
-// POST /comments/:occurrenceId/:commentId/reply — resposta a comentário
 router.post("/:occurrenceId/:commentId/reply", addReply);
+
+router.put("/:occurrenceId/:commentId", updateComment);
+
+router.delete("/:occurrenceId/:commentId", deleteComment);
+
+router.put("/:occurrenceId/:commentId/reply/:replyId", updateReply);
+
+router.delete("/:occurrenceId/:commentId/reply/:replyId", deleteReply);
 
 export default router;

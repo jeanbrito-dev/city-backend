@@ -16,36 +16,42 @@ export const createOccurrence = async (req, res) => {
   try {
     if (useMock) {
       const newOccurrence = {
-        id: uuidv4(), // gera id único simples
-        createdAt: new Date(), // simula campo do banco
-        likedBy: [], // array de userIds que curtiram
+        id: uuidv4(),
+        createdAt: new Date(),
+        likedBy: [],
+        userId: req.body.userId, // IMPORTANTE
         ...req.body,
       };
 
-      occurrences.push(newOccurrence); // salva no array (memória)
+      occurrences.push(newOccurrence);
 
-      return res.json({ ...newOccurrence, likes: 0, comentarios: 0 });
+      return res.json({
+        ...newOccurrence,
+        likes: 0,
+        comentarios: 0,
+      });
     }
 
     const occurrence = await prisma.occurrence.create({
-      data: req.body, // envia direto pro banco
+      data: req.body,
     });
 
     res.json(occurrence);
   } catch {
-    res.status(500).json({ error: "Erro ao criar ocorrência" });
+    res.status(500).json({
+      error: "Erro ao criar ocorrência",
+    });
   }
 };
 
 // GET ALL + FILTRO
 export const getOccurrences = async (req, res) => {
   try {
-    const { status, categoria } = req.query;
+    const { status, categoria, userId } = req.query;
 
     if (useMock) {
-      let data = [...occurrences]; // copia pra não alterar original
+      let data = [...occurrences];
 
-      // filtro manual (igual ao where do prisma)
       if (status) {
         data = data.filter(o => o.status === status);
       }
@@ -54,10 +60,13 @@ export const getOccurrences = async (req, res) => {
         data = data.filter(o => o.categoria === categoria);
       }
 
-      // ordena por data (mais recente primeiro)
+      // FILTRO POR USUÁRIO
+      if (userId) {
+        data = data.filter(o => String(o.userId) === String(userId));
+      }
+
       data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-      // inclui contagem de comentários em cada item
       const withCounts = data.map(o => ({
         ...o,
         likes: (o.likedBy || []).length,
@@ -70,8 +79,9 @@ export const getOccurrences = async (req, res) => {
 
     const data = await prisma.occurrence.findMany({
       where: {
-        status: status || undefined, // undefined ignora filtro
+        status: status || undefined,
         categoria: categoria || undefined,
+        userId: userId || undefined,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -88,7 +98,7 @@ export const getOccurrenceById = async (req, res) => {
     const id = req.params.id;
 
     if (useMock) {
-      const occurrence = occurrences.find(o => o.id === id);
+      const occurrence = occurrences.find((o) => o.id === id);
       if (!occurrence) {
         return res.status(404).json({ error: "Ocorrência não encontrada" });
       }
@@ -117,7 +127,7 @@ export const updateOccurrence = async (req, res) => {
     const id = req.params.id;
 
     if (useMock) {
-      const index = occurrences.findIndex(o => o.id === id);
+      const index = occurrences.findIndex((o) => o.id === id);
 
       if (index !== -1) {
         occurrences[index] = {
@@ -146,7 +156,7 @@ export const deleteOccurrence = async (req, res) => {
     const id = req.params.id;
 
     if (useMock) {
-      const filtered = occurrences.filter(o => o.id !== id);
+      const filtered = occurrences.filter((o) => o.id !== id);
 
       occurrences.length = 0; // limpa array original
       occurrences.push(...filtered); // recria sem o item deletado
@@ -175,7 +185,7 @@ export const toggleLike = async (req, res) => {
     }
 
     if (useMock) {
-      const occurrence = occurrences.find(o => o.id === id);
+      const occurrence = occurrences.find((o) => o.id === id);
       if (!occurrence) {
         return res.status(404).json({ error: "Ocorrência não encontrada" });
       }
@@ -186,7 +196,7 @@ export const toggleLike = async (req, res) => {
 
       if (alreadyLiked) {
         // remove o like
-        occurrence.likedBy = occurrence.likedBy.filter(uid => uid !== userId);
+        occurrence.likedBy = occurrence.likedBy.filter((uid) => uid !== userId);
       } else {
         // adiciona o like
         occurrence.likedBy.push(userId);
