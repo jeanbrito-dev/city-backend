@@ -19,7 +19,7 @@ export const createOccurrence = async (req, res) => {
         id: uuidv4(),
         createdAt: new Date(),
         likedBy: [],
-        userId: req.body.userId, // IMPORTANTE
+        userId: req.user?.id || req.body.userId, // IMPORTANTE
         ...req.body,
       };
 
@@ -178,7 +178,7 @@ export const deleteOccurrence = async (req, res) => {
 export const toggleLike = async (req, res) => {
   try {
     const id = req.params.id;
-    const { userId } = req.body;
+    const userId = req.user?.id || req.body.userId;
 
     if (!userId) {
       return res.status(400).json({ error: "userId é obrigatório" });

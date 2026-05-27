@@ -1,3 +1,5 @@
+import { signToken } from "../lib/jwt.js";
+
 // mock de usuários
 const users = [
   {
@@ -29,8 +31,15 @@ export const login = async (req, res) => {
       });
     }
 
+    const token = signToken({
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
+    });
+
     return res.json({
       message: "Login realizado com sucesso",
+      token,
       user: {
         id: user.id,
         nome: user.nome,
@@ -73,8 +82,15 @@ export const register = async (req, res) => {
 
     users.push(newUser);
 
+    const token = signToken({
+      id: newUser.id,
+      nome: newUser.nome,
+      email: newUser.email,
+    });
+
     res.json({
       message: "Usuário criado",
+      token,
       user: {
         id: newUser.id,
         nome: newUser.nome,
@@ -93,6 +109,12 @@ export const register = async (req, res) => {
 export const getUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
+
+    if (req.user.id !== id) {
+      return res.status(403).json({
+        error: "Acesso proibido",
+      });
+    }
 
     const user = users.find((u) => u.id === id);
 
@@ -119,6 +141,12 @@ export const getUser = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
+
+    if (req.user.id !== id) {
+      return res.status(403).json({
+        error: "Acesso proibido",
+      });
+    }
 
     const index = users.findIndex((u) => u.id === id);
 
@@ -148,8 +176,15 @@ export const updateUser = async (req, res) => {
       senha: senha || users[index].senha,
     };
 
+    const token = signToken({
+      id: users[index].id,
+      nome: users[index].nome,
+      email: users[index].email,
+    });
+
     res.json({
       message: "Usuário atualizado",
+      token,
       user: {
         id: users[index].id,
         nome: users[index].nome,
@@ -168,6 +203,12 @@ export const updateUser = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
+
+    if (req.user.id !== id) {
+      return res.status(403).json({
+        error: "Acesso proibido",
+      });
+    }
 
     const index = users.findIndex((u) => u.id === id);
 

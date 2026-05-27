@@ -7,15 +7,16 @@ import {
   deleteOccurrence,
   toggleLike,
 } from "../controllers/occurrenceController.js";
+import { authMiddleware } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
 
-router.post("/", createOccurrence);
+router.post("/", authMiddleware, createOccurrence);
 router.get("/", getOccurrences);
-router.patch("/:id/like", toggleLike);
+router.patch("/:id/like", authMiddleware, toggleLike);
 router.get("/:id", getOccurrenceById);
-router.put("/:id", updateOccurrence);
-router.delete("/:id", deleteOccurrence);
+router.put("/:id", authMiddleware, updateOccurrence);
+router.delete("/:id", authMiddleware, deleteOccurrence);
 
 export default router;
