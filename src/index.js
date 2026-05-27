@@ -1,5 +1,8 @@
+import "./config/env.js";
+
 import express from "express";
 import cors from "cors";
+
 import occurrenceRoutes from "./routes/occurrenceRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import geocodeRoutes from "./routes/geocodeRoutes.js";
