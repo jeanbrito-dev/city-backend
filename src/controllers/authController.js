@@ -4,8 +4,8 @@ import { signToken } from "../lib/jwt.js";
 const users = [
   {
     id: 1,
-    nome: "Jean",
-    email: "jean@email.com",
+    nome: "Admin",
+    email: "admin@email.com",
     senha: "123456",
   },
 ];
