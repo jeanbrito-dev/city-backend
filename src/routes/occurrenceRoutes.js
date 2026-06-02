@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { upload } from "../middlewares/upload.js";
 import {
   createOccurrence,
   getOccurrences,
@@ -12,7 +13,7 @@ import { authMiddleware } from "../middlewares/authMiddleware.js";
 const router = Router();
 
 
-router.post("/", authMiddleware, createOccurrence);
+router.post("/", authMiddleware, upload.single("imagem"), createOccurrence);
 router.get("/", getOccurrences);
 router.patch("/:id/like", authMiddleware, toggleLike);
 router.get("/:id", getOccurrenceById);

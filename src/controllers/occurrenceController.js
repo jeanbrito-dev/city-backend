@@ -3,7 +3,7 @@ import { occurrences } from "../data/occurrences.js";
 import { commentsByOccurrence } from "./commentController.js";
 import { v4 as uuidv4 } from "uuid";
 
-const useMock = true; // true = usa array | false = usa banco
+const useMock = false; // true = usa array | false = usa banco
 
 // Helper: calcula total de comentários + replies de uma ocorrência
 const getCommentCount = (occurrenceId) => {
@@ -11,16 +11,23 @@ const getCommentCount = (occurrenceId) => {
   return comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
 };
 
+
+
 // CREATE
 export const createOccurrence = async (req, res) => {
   try {
+    const imagem = req.file ? `/uploads/${req.file.filename}` : null;
+
     if (useMock) {
       const newOccurrence = {
         id: uuidv4(),
         createdAt: new Date(),
         likedBy: [],
-        userId: req.user?.id || req.body.userId, // IMPORTANTE
+        userId: req.user?.id || req.body.userId,
         ...req.body,
+        latitude: Number(req.body.latitude),
+        longitude: Number(req.body.longitude),
+        imagem,
       };
 
       occurrences.push(newOccurrence);
@@ -33,11 +40,21 @@ export const createOccurrence = async (req, res) => {
     }
 
     const occurrence = await prisma.occurrence.create({
-      data: req.body,
+      data: {
+        titulo: req.body.titulo,
+        descricao: req.body.descricao,
+        categoria: req.body.categoria,
+        status: req.body.status,
+        latitude: Number(req.body.latitude),
+        longitude: Number(req.body.longitude),
+        imagem,
+      },
     });
 
     res.json(occurrence);
-  } catch {
+  } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       error: "Erro ao criar ocorrência",
     });
