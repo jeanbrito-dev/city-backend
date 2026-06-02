@@ -11,8 +11,6 @@ const getCommentCount = (occurrenceId) => {
   return comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
 };
 
-
-
 // CREATE
 export const createOccurrence = async (req, res) => {
   try {
@@ -53,10 +51,11 @@ export const createOccurrence = async (req, res) => {
 
     res.json(occurrence);
   } catch (error) {
-    console.error(error);
+    console.error("Erro ao criar ocorrência:", error);
 
     res.status(500).json({
       error: "Erro ao criar ocorrência",
+      details: error.message,
     });
   }
 };
@@ -70,21 +69,20 @@ export const getOccurrences = async (req, res) => {
       let data = [...occurrences];
 
       if (status) {
-        data = data.filter(o => o.status === status);
+        data = data.filter((o) => o.status === status);
       }
 
       if (categoria) {
-        data = data.filter(o => o.categoria === categoria);
+        data = data.filter((o) => o.categoria === categoria);
       }
 
-      // FILTRO POR USUÁRIO
       if (userId) {
-        data = data.filter(o => String(o.userId) === String(userId));
+        data = data.filter((o) => String(o.userId) === String(userId));
       }
 
       data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-      const withCounts = data.map(o => ({
+      const withCounts = data.map((o) => ({
         ...o,
         likes: (o.likedBy || []).length,
         likedBy: o.likedBy || [],
@@ -94,18 +92,38 @@ export const getOccurrences = async (req, res) => {
       return res.json(withCounts);
     }
 
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+
+    if (categoria) {
+      where.categoria = categoria;
+    }
+
     const data = await prisma.occurrence.findMany({
-      where: {
-        status: status || undefined,
-        categoria: categoria || undefined,
-        userId: userId || undefined,
+      where,
+      orderBy: {
+        createdAt: "desc",
       },
-      orderBy: { createdAt: "desc" },
     });
 
-    res.json(data);
-  } catch {
-    res.status(500).json({ error: "Erro ao buscar ocorrências" });
+    res.json(
+      data.map((o) => ({
+        ...o,
+        likes: 0,
+        likedBy: [],
+        comentarios: 0,
+      }))
+    );
+  } catch (error) {
+    console.error("Erro ao buscar ocorrências:", error);
+
+    res.status(500).json({
+      error: "Erro ao buscar ocorrências",
+      details: error.message,
+    });
   }
 };
 
@@ -116,8 +134,11 @@ export const getOccurrenceById = async (req, res) => {
 
     if (useMock) {
       const occurrence = occurrences.find((o) => o.id === id);
+
       if (!occurrence) {
-        return res.status(404).json({ error: "Ocorrência não encontrada" });
+        return res.status(404).json({
+          error: "Ocorrência não encontrada",
+        });
       }
 
       return res.json({
@@ -129,12 +150,30 @@ export const getOccurrenceById = async (req, res) => {
     }
 
     const occurrence = await prisma.occurrence.findUnique({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
-    res.json(occurrence);
-  } catch {
-    res.status(500).json({ error: "Erro ao buscar ocorrência" });
+    if (!occurrence) {
+      return res.status(404).json({
+        error: "Ocorrência não encontrada",
+      });
+    }
+
+    res.json({
+      ...occurrence,
+      likes: 0,
+      likedBy: [],
+      comentarios: 0,
+    });
+  } catch (error) {
+    console.error("Erro ao buscar ocorrência:", error);
+
+    res.status(500).json({
+      error: "Erro ao buscar ocorrência",
+      details: error.message,
+    });
   }
 };
 
@@ -146,24 +185,47 @@ export const updateOccurrence = async (req, res) => {
     if (useMock) {
       const index = occurrences.findIndex((o) => o.id === id);
 
-      if (index !== -1) {
-        occurrences[index] = {
-          ...occurrences[index],
-          ...req.body, // sobrescreve só o que veio
-        };
+      if (index === -1) {
+        return res.status(404).json({
+          error: "Ocorrência não encontrada",
+        });
       }
+
+      occurrences[index] = {
+        ...occurrences[index],
+        ...req.body,
+      };
 
       return res.json(occurrences[index]);
     }
 
     const updated = await prisma.occurrence.update({
-      where: { id },
-      data: req.body,
+      where: {
+        id,
+      },
+      data: {
+        titulo: req.body.titulo,
+        descricao: req.body.descricao,
+        categoria: req.body.categoria,
+        status: req.body.status,
+        latitude:
+          req.body.latitude !== undefined ? Number(req.body.latitude) : undefined,
+        longitude:
+          req.body.longitude !== undefined
+            ? Number(req.body.longitude)
+            : undefined,
+        imagem: req.body.imagem,
+      },
     });
 
     res.json(updated);
-  } catch {
-    res.status(500).json({ error: "Erro ao atualizar ocorrência" });
+  } catch (error) {
+    console.error("Erro ao atualizar ocorrência:", error);
+
+    res.status(500).json({
+      error: "Erro ao atualizar ocorrência",
+      details: error.message,
+    });
   }
 };
 
@@ -175,36 +237,52 @@ export const deleteOccurrence = async (req, res) => {
     if (useMock) {
       const filtered = occurrences.filter((o) => o.id !== id);
 
-      occurrences.length = 0; // limpa array original
-      occurrences.push(...filtered); // recria sem o item deletado
+      occurrences.length = 0;
+      occurrences.push(...filtered);
 
-      return res.json({ message: "Deletado com sucesso" });
+      return res.json({
+        message: "Deletado com sucesso",
+      });
     }
 
     await prisma.occurrence.delete({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
-    res.json({ message: "Deletado com sucesso" });
-  } catch {
-    res.status(500).json({ error: "Erro ao deletar ocorrência" });
+    res.json({
+      message: "Deletado com sucesso",
+    });
+  } catch (error) {
+    console.error("Erro ao deletar ocorrência:", error);
+
+    res.status(500).json({
+      error: "Erro ao deletar ocorrência",
+      details: error.message,
+    });
   }
 };
 
-// LIKE / UNLIKE (por usuário)
+// LIKE / UNLIKE
 export const toggleLike = async (req, res) => {
   try {
     const id = req.params.id;
     const userId = req.user?.id || req.body.userId;
 
     if (!userId) {
-      return res.status(400).json({ error: "userId é obrigatório" });
+      return res.status(400).json({
+        error: "userId é obrigatório",
+      });
     }
 
     if (useMock) {
       const occurrence = occurrences.find((o) => o.id === id);
+
       if (!occurrence) {
-        return res.status(404).json({ error: "Ocorrência não encontrada" });
+        return res.status(404).json({
+          error: "Ocorrência não encontrada",
+        });
       }
 
       if (!occurrence.likedBy) occurrence.likedBy = [];
@@ -212,10 +290,8 @@ export const toggleLike = async (req, res) => {
       const alreadyLiked = occurrence.likedBy.includes(userId);
 
       if (alreadyLiked) {
-        // remove o like
         occurrence.likedBy = occurrence.likedBy.filter((uid) => uid !== userId);
       } else {
-        // adiciona o like
         occurrence.likedBy.push(userId);
       }
 
@@ -226,8 +302,18 @@ export const toggleLike = async (req, res) => {
       });
     }
 
-    res.status(501).json({ error: "Não implementado para banco" });
-  } catch {
-    res.status(500).json({ error: "Erro ao curtir ocorrência" });
+    return res.json({
+      likes: 0,
+      liked: false,
+      likedBy: [],
+      message: "Like ainda não implementado no banco",
+    });
+  } catch (error) {
+    console.error("Erro ao curtir ocorrência:", error);
+
+    res.status(500).json({
+      error: "Erro ao curtir ocorrência",
+      details: error.message,
+    });
   }
 };
