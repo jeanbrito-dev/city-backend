@@ -18,6 +18,14 @@ app.use("/auth", authRoutes);
 app.use("/geocode", geocodeRoutes);
 app.use("/comments", commentRoutes);
 
+// Rota para saber se está online ou não
+app.get("/", (req, res) => {
+  res.json({
+    status: "online",
+    message: "API funcionando"
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
