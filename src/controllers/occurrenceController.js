@@ -3,7 +3,7 @@ import { occurrences } from "../data/occurrences.js";
 import { commentsByOccurrence } from "./commentController.js";
 import { v4 as uuidv4 } from "uuid";
 
-const useMock = false; // true = usa array | false = usa banco
+const useMock = false;
 
 // Helper: calcula total de comentários + replies de uma ocorrência
 const getCommentCount = (occurrenceId) => {
@@ -47,11 +47,16 @@ export const createOccurrence = async (req, res) => {
         longitude: Number(req.body.longitude),
         imagem,
         autor: req.body.autor,
-        userId: String(req.body.userId),
+        userId: req.body.userId ? Number(req.body.userId) : null,
       },
     });
 
-    res.json(occurrence);
+    res.json({
+      ...occurrence,
+      likes: 0,
+      likedBy: [],
+      comentarios: 0,
+    });
   } catch (error) {
     console.error("Erro ao criar ocorrência:", error);
 
@@ -105,7 +110,7 @@ export const getOccurrences = async (req, res) => {
     }
 
     if (userId) {
-      where.userId = String(userId);
+      where.userId = Number(userId);
     }
 
     const data = await prisma.occurrence.findMany({
@@ -139,7 +144,7 @@ export const getOccurrenceById = async (req, res) => {
     const id = req.params.id;
 
     if (useMock) {
-      const occurrence = occurrences.find((o) => o.id === id);
+      const occurrence = occurrences.find((o) => String(o.id) === String(id));
 
       if (!occurrence) {
         return res.status(404).json({
@@ -189,7 +194,7 @@ export const updateOccurrence = async (req, res) => {
     const id = req.params.id;
 
     if (useMock) {
-      const index = occurrences.findIndex((o) => o.id === id);
+      const index = occurrences.findIndex((o) => String(o.id) === String(id));
 
       if (index === -1) {
         return res.status(404).json({
@@ -221,6 +226,11 @@ export const updateOccurrence = async (req, res) => {
             ? Number(req.body.longitude)
             : undefined,
         imagem: req.body.imagem,
+        autor: req.body.autor,
+        userId:
+          req.body.userId !== undefined && req.body.userId !== null
+            ? Number(req.body.userId)
+            : undefined,
       },
     });
 
@@ -241,7 +251,7 @@ export const deleteOccurrence = async (req, res) => {
     const id = req.params.id;
 
     if (useMock) {
-      const filtered = occurrences.filter((o) => o.id !== id);
+      const filtered = occurrences.filter((o) => String(o.id) !== String(id));
 
       occurrences.length = 0;
       occurrences.push(...filtered);
@@ -283,7 +293,7 @@ export const toggleLike = async (req, res) => {
     }
 
     if (useMock) {
-      const occurrence = occurrences.find((o) => o.id === id);
+      const occurrence = occurrences.find((o) => String(o.id) === String(id));
 
       if (!occurrence) {
         return res.status(404).json({

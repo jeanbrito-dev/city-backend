@@ -1,14 +1,5 @@
+import { prisma } from "../lib/prisma.js";
 import { signToken } from "../lib/jwt.js";
-
-// mock de usuários
-const users = [
-  {
-    id: 1,
-    nome: "Admin",
-    email: "admin@email.com",
-    senha: "123456",
-  },
-];
 
 // LOGIN
 export const login = async (req, res) => {
@@ -21,11 +12,13 @@ export const login = async (req, res) => {
       });
     }
 
-    const user = users.find(
-      (u) => u.email === email && u.senha === senha
-    );
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
-    if (!user) {
+    if (!user || user.senha !== senha) {
       return res.status(401).json({
         error: "Credenciais inválidas",
       });
@@ -46,10 +39,12 @@ export const login = async (req, res) => {
         email: user.email,
       },
     });
+  } catch (error) {
+    console.error("Erro no login:", error);
 
-  } catch {
     res.status(500).json({
       error: "Erro no login",
+      details: error.message,
     });
   }
 };
@@ -65,7 +60,11 @@ export const register = async (req, res) => {
       });
     }
 
-    const exists = users.find((u) => u.email === email);
+    const exists = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
     if (exists) {
       return res.status(400).json({
@@ -73,14 +72,13 @@ export const register = async (req, res) => {
       });
     }
 
-    const newUser = {
-      id: Date.now(),
-      nome,
-      email,
-      senha,
-    };
-
-    users.push(newUser);
+    const newUser = await prisma.user.create({
+      data: {
+        nome,
+        email,
+        senha,
+      },
+    });
 
     const token = signToken({
       id: newUser.id,
@@ -97,10 +95,12 @@ export const register = async (req, res) => {
         email: newUser.email,
       },
     });
+  } catch (error) {
+    console.error("Erro ao registrar:", error);
 
-  } catch {
     res.status(500).json({
       error: "Erro ao registrar",
+      details: error.message,
     });
   }
 };
@@ -110,13 +110,17 @@ export const getUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
-    if (req.user.id !== id) {
+    if (Number(req.user.id) !== id) {
       return res.status(403).json({
         error: "Acesso proibido",
       });
     }
 
-    const user = users.find((u) => u.id === id);
+    const user = await prisma.user.findUnique({
+      where: {
+        id,
+      },
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -129,10 +133,12 @@ export const getUser = async (req, res) => {
       nome: user.nome,
       email: user.email,
     });
+  } catch (error) {
+    console.error("Erro ao buscar usuário:", error);
 
-  } catch {
     res.status(500).json({
       error: "Erro ao buscar usuário",
+      details: error.message,
     });
   }
 };
@@ -142,59 +148,60 @@ export const updateUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
-    if (req.user.id !== id) {
+    if (Number(req.user.id) !== id) {
       return res.status(403).json({
         error: "Acesso proibido",
       });
     }
 
-    const index = users.findIndex((u) => u.id === id);
-
-    if (index === -1) {
-      return res.status(404).json({
-        error: "Usuário não encontrado",
-      });
-    }
-
     const { nome, email, senha } = req.body;
 
-    // impede email duplicado
-    const emailExists = users.find(
-      (u) => u.email === email && u.id !== id
-    );
-
-    if (emailExists) {
-      return res.status(400).json({
-        error: "Email já está em uso",
+    if (email) {
+      const emailExists = await prisma.user.findUnique({
+        where: {
+          email,
+        },
       });
+
+      if (emailExists && emailExists.id !== id) {
+        return res.status(400).json({
+          error: "Email já está em uso",
+        });
+      }
     }
 
-    users[index] = {
-      ...users[index],
-      nome: nome || users[index].nome,
-      email: email || users[index].email,
-      senha: senha || users[index].senha,
-    };
+    const user = await prisma.user.update({
+      where: {
+        id,
+      },
+      data: {
+        nome: nome || undefined,
+        email: email || undefined,
+        senha: senha || undefined,
+      },
+    });
 
     const token = signToken({
-      id: users[index].id,
-      nome: users[index].nome,
-      email: users[index].email,
+      id: user.id,
+      nome: user.nome,
+      email: user.email,
     });
 
     res.json({
       message: "Usuário atualizado",
       token,
       user: {
-        id: users[index].id,
-        nome: users[index].nome,
-        email: users[index].email,
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
       },
     });
+  } catch (error) {
+    console.error("Erro ao atualizar usuário:", error);
 
-  } catch {
     res.status(500).json({
       error: "Erro ao atualizar usuário",
+      details: error.message,
     });
   }
 };
@@ -204,29 +211,27 @@ export const deleteUser = async (req, res) => {
   try {
     const id = Number(req.params.id);
 
-    if (req.user.id !== id) {
+    if (Number(req.user.id) !== id) {
       return res.status(403).json({
         error: "Acesso proibido",
       });
     }
 
-    const index = users.findIndex((u) => u.id === id);
-
-    if (index === -1) {
-      return res.status(404).json({
-        error: "Usuário não encontrado",
-      });
-    }
-
-    users.splice(index, 1);
+    await prisma.user.delete({
+      where: {
+        id,
+      },
+    });
 
     res.json({
       message: "Usuário deletado com sucesso",
     });
+  } catch (error) {
+    console.error("Erro ao deletar usuário:", error);
 
-  } catch {
     res.status(500).json({
       error: "Erro ao deletar usuário",
+      details: error.message,
     });
   }
 };
