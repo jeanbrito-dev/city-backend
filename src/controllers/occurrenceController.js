@@ -82,6 +82,10 @@ export const getOccurrences = async (req, res) => {
         data = data.filter((o) => String(o.userId) === String(userId));
       }
 
+      if (userId) {
+        where.userId = String(userId);
+      }
+
       data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       const withCounts = data.map((o) => ({
