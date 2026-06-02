@@ -16,5 +16,7 @@ model Occurrence {
   latitude  Float
   longitude Float
   imagem    String?
+  autor     String?
+  userId    String?
   createdAt DateTime @default(now())
 }
