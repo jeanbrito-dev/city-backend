@@ -46,6 +46,8 @@ export const createOccurrence = async (req, res) => {
         latitude: Number(req.body.latitude),
         longitude: Number(req.body.longitude),
         imagem,
+        autor: req.body.autor,
+        userId: String(req.body.userId),
       },
     });
 
@@ -100,6 +102,10 @@ export const getOccurrences = async (req, res) => {
 
     if (categoria) {
       where.categoria = categoria;
+    }
+
+    if (userId) {
+      where.userId = String(userId);
     }
 
     const data = await prisma.occurrence.findMany({
