@@ -151,7 +151,7 @@ export const getOccurrenceById = async (req, res) => {
 
     const occurrence = await prisma.occurrence.findUnique({
       where: {
-        id,
+        id: Number(id),
       },
     });
 
@@ -201,7 +201,7 @@ export const updateOccurrence = async (req, res) => {
 
     const updated = await prisma.occurrence.update({
       where: {
-        id,
+        id: Number(id),
       },
       data: {
         titulo: req.body.titulo,
@@ -247,7 +247,7 @@ export const deleteOccurrence = async (req, res) => {
 
     await prisma.occurrence.delete({
       where: {
-        id,
+        id: Number(id),
       },
     });
 
