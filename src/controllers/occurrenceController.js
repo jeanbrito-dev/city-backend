@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma.js";
 import { occurrences } from "../data/occurrences.js";
 import { commentsByOccurrence } from "./commentController.js";
 import { v4 as uuidv4 } from "uuid";
+import { cloudinary } from "../lib/cloudinary.js";
 
 const useMock = false;
 
@@ -14,7 +15,25 @@ const getCommentCount = (occurrenceId) => {
 // CREATE
 export const createOccurrence = async (req, res) => {
   try {
-    const imagem = req.file ? `/uploads/${req.file.filename}` : null;
+    let imagem = null;
+
+    if (req.file) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "unicity/occurrences",
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+
+        stream.end(req.file.buffer);
+      });
+
+      imagem = uploadResult.secure_url;
+    }
 
     if (useMock) {
       const newOccurrence = {
