@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { signToken } from "../lib/jwt.js";
+import bcrypt from "bcrypt";
 
 // LOGIN
 export const login = async (req, res) => {
@@ -18,16 +19,21 @@ export const login = async (req, res) => {
       },
     });
 
-    if (!user || user.senha !== senha) {
-      return res.status(401).json({
-        error: "Credenciais inválidas",
-      });
+    if (!user) {
+      return res.status(401).json({ error: "Credenciais inválidas" });
+    }
+
+    const valid = await bcrypt.compare(senha, user.senha);
+
+    if (!valid) {
+      return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
     const token = signToken({
       id: user.id,
       nome: user.nome,
       email: user.email,
+      role: user.role,
     });
 
     return res.json({
@@ -37,6 +43,7 @@ export const login = async (req, res) => {
         id: user.id,
         nome: user.nome,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -72,11 +79,13 @@ export const register = async (req, res) => {
       });
     }
 
+    const hashedPassword = await bcrypt.hash(senha, 10);
+
     const newUser = await prisma.user.create({
       data: {
         nome,
         email,
-        senha,
+        senha: hashedPassword,
       },
     });
 
@@ -84,6 +93,7 @@ export const register = async (req, res) => {
       id: newUser.id,
       nome: newUser.nome,
       email: newUser.email,
+      role: newUser.role,
     });
 
     res.json({
@@ -93,6 +103,7 @@ export const register = async (req, res) => {
         id: newUser.id,
         nome: newUser.nome,
         email: newUser.email,
+        role: newUser.role,
       },
     });
   } catch (error) {
@@ -170,6 +181,11 @@ export const updateUser = async (req, res) => {
       }
     }
 
+    let hashedPassword = undefined;
+    if (senha) {
+      hashedPassword = await bcrypt.hash(senha, 10);
+    }
+
     const user = await prisma.user.update({
       where: {
         id,
@@ -177,7 +193,7 @@ export const updateUser = async (req, res) => {
       data: {
         nome: nome || undefined,
         email: email || undefined,
-        senha: senha || undefined,
+        senha: hashedPassword || undefined,
       },
     });
 
@@ -185,6 +201,7 @@ export const updateUser = async (req, res) => {
       id: user.id,
       nome: user.nome,
       email: user.email,
+      role: user.role,
     });
 
     res.json({
@@ -194,6 +211,7 @@ export const updateUser = async (req, res) => {
         id: user.id,
         nome: user.nome,
         email: user.email,
+        role: user.role,
       },
     });
   } catch (error) {
