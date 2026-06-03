@@ -15,6 +15,7 @@ model User {
   createdAt DateTime @default(now())
 
   occurrences Occurrence[]
+  likes       Like[]
 }
 
 model Occurrence {
@@ -31,4 +32,20 @@ model Occurrence {
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+
+  likes Like[]
+}
+
+model Like {
+  id Int @id @default(autoincrement())
+
+  userId       Int
+  occurrenceId Int
+
+  createdAt DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id])
+  occurrence Occurrence @relation(fields: [occurrenceId], references: [id])
+
+  @@unique([userId, occurrenceId])
 }
