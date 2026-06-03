@@ -43,3 +43,6 @@ Thumbs.db
 # Coverage & test artifacts
 coverage/
 .nyc_output/
+
+# Scripts (ignorar pasta de scripts)
+scripts/
