@@ -7,11 +7,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  user
+  admin
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   nome      String
   email     String   @unique
   senha     String
+  role      Role     @default(user)
   createdAt DateTime @default(now())
 
   occurrences Occurrence[]

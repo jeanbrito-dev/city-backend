@@ -23,7 +23,7 @@ app.use("/comments", commentRoutes);
 app.get("/", (req, res) => {
   res.json({
     status: "online",
-    message: "API funcionando"
+    message: "API funcionando",
   });
 });
 
