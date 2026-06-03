@@ -21,7 +21,7 @@ model User {
 model Occurrence {
   id        Int      @id @default(autoincrement())
   titulo    String
-  descricao String    @db.LongText
+  descricao String
   categoria String
   status    String
   latitude  Float
@@ -31,18 +31,14 @@ model Occurrence {
   userId    Int?
   createdAt DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
-
+  user  User?  @relation(fields: [userId], references: [id])
   likes Like[]
 }
 
 model Like {
-  id Int @id @default(autoincrement())
-
+  id           Int @id @default(autoincrement())
   userId       Int
   occurrenceId Int
-
-  createdAt DateTime @default(now())
 
   user       User       @relation(fields: [userId], references: [id])
   occurrence Occurrence @relation(fields: [occurrenceId], references: [id])
