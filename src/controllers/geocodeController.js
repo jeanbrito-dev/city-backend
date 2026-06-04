@@ -31,9 +31,9 @@ export const reverseGeocode = async (req, res) => {
 
     const parts = [
       addr.road,
-      addr.house_number,
       addr.suburb,
       addr.city || addr.town,
+      addr.postcode,
     ].filter(Boolean);
 
     const endereco = parts.join(", ") || "Local não encontrado";
