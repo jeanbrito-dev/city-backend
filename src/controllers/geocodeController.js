@@ -6,7 +6,9 @@ export const reverseGeocode = async (req, res) => {
     const { lat, lon } = req.query;
 
     if (!lat || !lon) {
-      return res.status(400).json({ error: "Parâmetros 'lat' e 'lon' são obrigatórios" });
+      return res
+        .status(400)
+        .json({ error: "Parâmetros 'lat' e 'lon' são obrigatórios" });
     }
 
     const response = await fetch(
@@ -15,17 +17,25 @@ export const reverseGeocode = async (req, res) => {
         headers: {
           "User-Agent": "Unicity/1.0 (unicity@gmail.com)",
         },
-      }
+      },
     );
 
     if (!response.ok) {
-      return res.status(502).json({ error: "Erro ao consultar serviço de geocodificação" });
+      return res
+        .status(502)
+        .json({ error: "Erro ao consultar serviço de geocodificação" });
     }
 
     const geo = await response.json();
     const addr = geo.address || {};
 
-    const parts = [addr.road, addr.suburb, addr.city || addr.town].filter(Boolean);
+    const parts = [
+      addr.road,
+      addr.house_number,
+      addr.suburb,
+      addr.city || addr.town,
+    ].filter(Boolean);
+
     const endereco = parts.join(", ") || "Local não encontrado";
 
     res.json({ endereco, raw: addr });
