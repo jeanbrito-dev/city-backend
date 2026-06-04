@@ -28,7 +28,7 @@ export async function deleteUser(req, res) {
   try {
     const { id } = req.params;
 
-    await prisma.user.delete({ where: { id } });
+    await prisma.user.delete({ where: { id: Number(id) } });
 
     return res.json({ message: "Usuário removido" });
 

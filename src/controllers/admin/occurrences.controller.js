@@ -3,7 +3,7 @@ import { prisma } from "../../lib/prisma.js";
 export async function getAllOccurrences(req, res) {
   try {
     const occurrences = await prisma.occurrence.findMany({
-      include: { autor: { select: { nome: true, email: true } } },
+      include: { user: { select: { nome: true, email: true } } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -23,7 +23,7 @@ export async function updateOccurrenceStatus(req, res) {
     const { status } = req.body;
 
     const updated = await prisma.occurrence.update({
-      where: { id },
+      where: { id: Number(id) },
       data: { status },
     });
 
@@ -40,7 +40,7 @@ export async function deleteOccurrence(req, res) {
   try {
     const { id } = req.params;
 
-    await prisma.occurrence.delete({ where: { id } });
+    await prisma.occurrence.delete({ where: { id: Number(id) } });
 
     return res.json({ message: "Ocorrência deletada" });
   } catch (err) {
