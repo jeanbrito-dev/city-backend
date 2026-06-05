@@ -1,16 +1,16 @@
 import { prisma } from "../lib/prisma.js";
 import { occurrences } from "../data/occurrences.js";
-import { commentsByOccurrence } from "./commentController.js";
+// import { commentsByOccurrence } from "./commentController.js";
 import { v4 as uuidv4 } from "uuid";
 import { cloudinary } from "../lib/cloudinary.js";
 
 const useMock = false;
 
 // Helper: calcula total de comentários + replies de uma ocorrência
-const getCommentCount = (occurrenceId) => {
-  const comments = commentsByOccurrence[occurrenceId] || [];
-  return comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
-};
+// const getCommentCount = (occurrenceId) => {
+//   const comments = commentsByOccurrence[occurrenceId] || [];
+//   return comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
+// };
 
 // CREATE
 export const createOccurrence = async (req, res) => {
@@ -138,22 +138,25 @@ export const getOccurrences = async (req, res) => {
         createdAt: "desc",
       },
       include: {
-        likes: { select: { userId: true } },
-        _count: { select: { comments: true } },
+        comments: {
+          include: {
+            replies: true,
+          },
+        },
+        likes: true,
       },
     });
 
     res.json(
-      data.map((o) => {
-        const likedBy = o.likes.map((l) => l.userId);
-        return {
-          ...o,
-          likes: likedBy.length,
-          likedBy,
-          comentarios: o._count.comments,
-          _count: undefined,
-        };
-      })
+      data.map((o) => ({
+        ...o,
+        likes: o.likes.length,
+        likedBy: o.likes.map((like) => like.userId),
+        comentarios: o.comments.reduce(
+          (acc, comment) => acc + 1 + comment.replies.length,
+          0
+        ),
+      }))
     );
   } catch (error) {
     console.error("Erro ao buscar ocorrências:", error);
@@ -191,10 +194,6 @@ export const getOccurrenceById = async (req, res) => {
       where: {
         id: Number(id),
       },
-      include: {
-        likes: { select: { userId: true } },
-        _count: { select: { comments: true } },
-      },
     });
 
     if (!occurrence) {
@@ -206,10 +205,12 @@ export const getOccurrenceById = async (req, res) => {
     const likedBy = occurrence.likes.map((l) => l.userId);
     res.json({
       ...occurrence,
-      likes: likedBy.length,
-      likedBy,
-      comentarios: occurrence._count.comments,
-      _count: undefined,
+      likes: occurrence.likes.length,
+      likedBy: occurrence.likes.map((like) => like.userId),
+      comentarios: occurrence.comments.reduce(
+        (acc, comment) => acc + 1 + comment.replies.length,
+        0
+      ),
     });
   } catch (error) {
     console.error("Erro ao buscar ocorrência:", error);
