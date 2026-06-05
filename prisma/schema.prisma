@@ -23,7 +23,7 @@ model User {
   occurrences Occurrence[]
   comments    Comment[]
   replies     Reply[]
-  likes       Like[]
+  likes       OccurrenceLike[]
 }
 
 model Occurrence {
@@ -42,7 +42,7 @@ model Occurrence {
 
   user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   comments Comment[]
-  likes    Like[]
+  likes    OccurrenceLike[]
 }
 
 model Comment {
@@ -72,7 +72,7 @@ model Reply {
   comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 }
 
-model Like {
+model OccurrenceLike {
   id           Int      @id @default(autoincrement())
   userId       Int
   occurrenceId Int
