@@ -1,16 +1,9 @@
 import { prisma } from "../lib/prisma.js";
 import { occurrences } from "../data/occurrences.js";
-// import { commentsByOccurrence } from "./commentController.js";
 import { v4 as uuidv4 } from "uuid";
 import { cloudinary } from "../lib/cloudinary.js";
 
 const useMock = false;
-
-// Helper: calcula total de comentários + replies de uma ocorrência
-// const getCommentCount = (occurrenceId) => {
-//   const comments = commentsByOccurrence[occurrenceId] || [];
-//   return comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0), 0);
-// };
 
 // CREATE
 export const createOccurrence = async (req, res) => {
@@ -26,7 +19,7 @@ export const createOccurrence = async (req, res) => {
           (error, result) => {
             if (error) return reject(error);
             resolve(result);
-          }
+          },
         );
 
         stream.end(req.file.buffer);
@@ -52,6 +45,7 @@ export const createOccurrence = async (req, res) => {
       return res.json({
         ...newOccurrence,
         likes: 0,
+        likedBy: [],
         comentarios: 0,
       });
     }
@@ -61,7 +55,7 @@ export const createOccurrence = async (req, res) => {
         titulo: req.body.titulo,
         descricao: req.body.descricao,
         categoria: req.body.categoria,
-        status: req.body.status,
+        status: req.body.status || "pendente",
         latitude: Number(req.body.latitude),
         longitude: Number(req.body.longitude),
         imagem,
@@ -70,7 +64,7 @@ export const createOccurrence = async (req, res) => {
       },
     });
 
-    res.json({
+    return res.json({
       ...occurrence,
       likes: 0,
       likedBy: [],
@@ -79,7 +73,7 @@ export const createOccurrence = async (req, res) => {
   } catch (error) {
     console.error("Erro ao criar ocorrência:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao criar ocorrência",
       details: error.message,
     });
@@ -112,7 +106,7 @@ export const getOccurrences = async (req, res) => {
         ...o,
         likes: (o.likedBy || []).length,
         likedBy: o.likedBy || [],
-        comentarios: getCommentCount(o.id),
+        comentarios: 0,
       }));
 
       return res.json(withCounts);
@@ -147,21 +141,21 @@ export const getOccurrences = async (req, res) => {
       },
     });
 
-    res.json(
+    return res.json(
       data.map((o) => ({
         ...o,
         likes: o.likes.length,
         likedBy: o.likes.map((like) => like.userId),
         comentarios: o.comments.reduce(
           (acc, comment) => acc + 1 + comment.replies.length,
-          0
+          0,
         ),
-      }))
+      })),
     );
   } catch (error) {
     console.error("Erro ao buscar ocorrências:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar ocorrências",
       details: error.message,
     });
@@ -171,7 +165,7 @@ export const getOccurrences = async (req, res) => {
 // GET BY ID
 export const getOccurrenceById = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = Number(req.params.id);
 
     if (useMock) {
       const occurrence = occurrences.find((o) => String(o.id) === String(id));
@@ -186,13 +180,21 @@ export const getOccurrenceById = async (req, res) => {
         ...occurrence,
         likes: (occurrence.likedBy || []).length,
         likedBy: occurrence.likedBy || [],
-        comentarios: getCommentCount(id),
+        comentarios: 0,
       });
     }
 
     const occurrence = await prisma.occurrence.findUnique({
       where: {
-        id: Number(id),
+        id,
+      },
+      include: {
+        comments: {
+          include: {
+            replies: true,
+          },
+        },
+        likes: true,
       },
     });
 
@@ -202,20 +204,19 @@ export const getOccurrenceById = async (req, res) => {
       });
     }
 
-    const likedBy = occurrence.likes.map((l) => l.userId);
-    res.json({
+    return res.json({
       ...occurrence,
       likes: occurrence.likes.length,
       likedBy: occurrence.likes.map((like) => like.userId),
       comentarios: occurrence.comments.reduce(
         (acc, comment) => acc + 1 + comment.replies.length,
-        0
+        0,
       ),
     });
   } catch (error) {
     console.error("Erro ao buscar ocorrência:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar ocorrência",
       details: error.message,
     });
@@ -225,7 +226,7 @@ export const getOccurrenceById = async (req, res) => {
 // UPDATE
 export const updateOccurrence = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = Number(req.params.id);
 
     if (useMock) {
       const index = occurrences.findIndex((o) => String(o.id) === String(id));
@@ -246,7 +247,7 @@ export const updateOccurrence = async (req, res) => {
 
     const updated = await prisma.occurrence.update({
       where: {
-        id: Number(id),
+        id,
       },
       data: {
         titulo: req.body.titulo,
@@ -256,9 +257,7 @@ export const updateOccurrence = async (req, res) => {
         latitude:
           req.body.latitude !== undefined ? Number(req.body.latitude) : undefined,
         longitude:
-          req.body.longitude !== undefined
-            ? Number(req.body.longitude)
-            : undefined,
+          req.body.longitude !== undefined ? Number(req.body.longitude) : undefined,
         imagem: req.body.imagem,
         autor: req.body.autor,
         userId:
@@ -268,11 +267,11 @@ export const updateOccurrence = async (req, res) => {
       },
     });
 
-    res.json(updated);
+    return res.json(updated);
   } catch (error) {
     console.error("Erro ao atualizar ocorrência:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao atualizar ocorrência",
       details: error.message,
     });
@@ -282,7 +281,7 @@ export const updateOccurrence = async (req, res) => {
 // DELETE
 export const deleteOccurrence = async (req, res) => {
   try {
-    const id = req.params.id;
+    const id = Number(req.params.id);
 
     if (useMock) {
       const filtered = occurrences.filter((o) => String(o.id) !== String(id));
@@ -297,17 +296,17 @@ export const deleteOccurrence = async (req, res) => {
 
     await prisma.occurrence.delete({
       where: {
-        id: Number(id),
+        id,
       },
     });
 
-    res.json({
+    return res.json({
       message: "Deletado com sucesso",
     });
   } catch (error) {
     console.error("Erro ao deletar ocorrência:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao deletar ocorrência",
       details: error.message,
     });
@@ -323,6 +322,12 @@ export const toggleLike = async (req, res) => {
     if (!userId) {
       return res.status(400).json({
         error: "userId é obrigatório",
+      });
+    }
+
+    if (!occurrenceId) {
+      return res.status(400).json({
+        error: "occurrenceId inválido",
       });
     }
 
@@ -391,7 +396,7 @@ export const toggleLike = async (req, res) => {
   } catch (error) {
     console.error("Erro ao curtir ocorrência:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao curtir ocorrência",
       details: error.message,
     });
