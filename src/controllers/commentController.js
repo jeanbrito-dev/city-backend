@@ -1,177 +1,185 @@
-import { randomUUID } from "crypto";
+import { prisma } from "../lib/prisma.js";
 
-// Armazena comentários por ocorrência em memória
-// Estrutura: { [occurrenceId]: [ { id, autor, texto, replies: [...] } ] }
-export const commentsByOccurrence = {};
-
-// GET comentários de uma ocorrência
-export const getComments = (req, res) => {
+// GET COMMENTS
+export const getComments = async (req, res) => {
   try {
-    const { occurrenceId } = req.params;
-    const comments = commentsByOccurrence[occurrenceId] || [];
+    const occurrenceId = Number(req.params.occurrenceId);
+
+    const comments = await prisma.comment.findMany({
+      where: {
+        occurrenceId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      include: {
+        replies: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+    });
+
     res.json(comments);
-  } catch {
-    res.status(500).json({ error: "Erro ao buscar comentários" });
-  }
-};
+  } catch (error) {
+    console.error("Erro ao buscar comentários:", error);
 
-// POST novo comentário em uma ocorrência
-export const addComment = (req, res) => {
-  try {
-    const { occurrenceId } = req.params;
-    const { autor, texto } = req.body;
-
-    if (!autor || !texto) {
-      return res.status(400).json({ error: "Autor e texto são obrigatórios" });
-    }
-
-    if (!commentsByOccurrence[occurrenceId]) {
-      commentsByOccurrence[occurrenceId] = [];
-    }
-
-    const newComment = {
-      id: randomUUID(),
-      autor,
-      texto,
-      createdAt: new Date(),
-      replies: [],
-    };
-
-    commentsByOccurrence[occurrenceId].push(newComment);
-    res.json(newComment);
-  } catch {
-    res.status(500).json({ error: "Erro ao adicionar comentário" });
-  }
-};
-
-// POST resposta a um comentário
-export const addReply = (req, res) => {
-  try {
-    const { occurrenceId, commentId } = req.params;
-    const { autor, texto, isAuthor } = req.body;
-
-    if (!autor || !texto) {
-      return res.status(400).json({ error: "Autor e texto são obrigatórios" });
-    }
-
-    const comments = commentsByOccurrence[occurrenceId];
-    if (!comments) {
-      return res.status(404).json({ error: "Ocorrência não encontrada" });
-    }
-
-    const comment = comments.find((c) => c.id === commentId);
-    if (!comment) {
-      return res.status(404).json({ error: "Comentário não encontrado" });
-    }
-
-    const newReply = {
-      id: randomUUID(),
-      autor,
-      texto,
-      isAuthor: isAuthor || false,
-      createdAt: new Date(),
-    };
-
-    comment.replies.push(newReply);
-    res.json(newReply);
-  } catch {
-    res.status(500).json({ error: "Erro ao adicionar resposta" });
-  }
-};
-
-// UPDATE comentário
-export const updateComment = (req, res) => {
-  try {
-    const { occurrenceId, commentId } = req.params;
-    const { texto } = req.body;
-
-    if (!texto) {
-      return res.status(400).json({
-        error: "Texto é obrigatório",
-      });
-    }
-
-    const comments = commentsByOccurrence[occurrenceId];
-
-    if (!comments) {
-      return res.status(404).json({
-        error: "Ocorrência não encontrada",
-      });
-    }
-
-    const comment = comments.find((c) => c.id === commentId);
-
-    if (!comment) {
-      return res.status(404).json({
-        error: "Comentário não encontrado",
-      });
-    }
-
-    comment.texto = texto;
-    comment.updatedAt = new Date();
-
-    res.json(comment);
-  } catch {
     res.status(500).json({
-      error: "Erro ao atualizar comentário",
+      error: "Erro ao buscar comentários",
+      details: error.message,
     });
   }
 };
 
-// DELETE comentário
-export const deleteComment = (req, res) => {
+// ADD COMMENT
+export const addComment = async (req, res) => {
   try {
-    const { occurrenceId, commentId } = req.params;
+    const occurrenceId = Number(req.params.occurrenceId);
+    const userId = req.user?.id ? Number(req.user.id) : null;
 
-    const comments = commentsByOccurrence[occurrenceId];
+    const { texto, autor } = req.body;
 
-    if (!comments) {
-      return res.status(404).json({
-        error: "Ocorrência não encontrada",
+    if (!texto) {
+      return res.status(400).json({
+        error: "Texto do comentário é obrigatório",
       });
     }
 
-    const index = comments.findIndex((c) => c.id === commentId);
+    const comment = await prisma.comment.create({
+      data: {
+        texto,
+        autor,
+        userId,
+        occurrenceId,
+      },
+      include: {
+        replies: true,
+      },
+    });
 
-    if (index === -1) {
+    res.json(comment);
+  } catch (error) {
+    console.error("Erro ao adicionar comentário:", error);
+
+    res.status(500).json({
+      error: "Erro ao adicionar comentário",
+      details: error.message,
+    });
+  }
+};
+
+// UPDATE COMMENT
+export const updateComment = async (req, res) => {
+  try {
+    const commentId = Number(req.params.commentId);
+    const userId = Number(req.user?.id);
+
+    const { texto } = req.body;
+
+    const comment = await prisma.comment.findUnique({
+      where: {
+        id: commentId,
+      },
+    });
+
+    if (!comment) {
       return res.status(404).json({
         error: "Comentário não encontrado",
       });
     }
 
-    comments.splice(index, 1);
+    if (comment.userId !== userId) {
+      return res.status(403).json({
+        error: "Você não tem permissão para editar este comentário",
+      });
+    }
+
+    const updated = await prisma.comment.update({
+      where: {
+        id: commentId,
+      },
+      data: {
+        texto,
+      },
+      include: {
+        replies: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Erro ao atualizar comentário:", error);
+
+    res.status(500).json({
+      error: "Erro ao atualizar comentário",
+      details: error.message,
+    });
+  }
+};
+
+// DELETE COMMENT
+export const deleteComment = async (req, res) => {
+  try {
+    const commentId = Number(req.params.commentId);
+    const userId = Number(req.user?.id);
+
+    const comment = await prisma.comment.findUnique({
+      where: {
+        id: commentId,
+      },
+    });
+
+    if (!comment) {
+      return res.status(404).json({
+        error: "Comentário não encontrado",
+      });
+    }
+
+    if (comment.userId !== userId) {
+      return res.status(403).json({
+        error: "Você não tem permissão para deletar este comentário",
+      });
+    }
+
+    await prisma.comment.delete({
+      where: {
+        id: commentId,
+      },
+    });
 
     res.json({
       message: "Comentário deletado com sucesso",
     });
-  } catch {
+  } catch (error) {
+    console.error("Erro ao deletar comentário:", error);
+
     res.status(500).json({
       error: "Erro ao deletar comentário",
+      details: error.message,
     });
   }
 };
 
-// UPDATE reply
-export const updateReply = (req, res) => {
+// ADD REPLY
+export const addReply = async (req, res) => {
   try {
-    const { occurrenceId, commentId, replyId } = req.params;
-    const { texto } = req.body;
+    const commentId = Number(req.params.commentId);
+    const userId = req.user?.id ? Number(req.user.id) : null;
+
+    const { texto, autor } = req.body;
 
     if (!texto) {
       return res.status(400).json({
-        error: "Texto é obrigatório",
+        error: "Texto da resposta é obrigatório",
       });
     }
 
-    const comments = commentsByOccurrence[occurrenceId];
-
-    if (!comments) {
-      return res.status(404).json({
-        error: "Ocorrência não encontrada",
-      });
-    }
-
-    const comment = comments.find((c) => c.id === commentId);
+    const comment = await prisma.comment.findUnique({
+      where: {
+        id: commentId,
+      },
+    });
 
     if (!comment) {
       return res.status(404).json({
@@ -179,7 +187,39 @@ export const updateReply = (req, res) => {
       });
     }
 
-    const reply = comment.replies.find((r) => r.id === replyId);
+    const reply = await prisma.reply.create({
+      data: {
+        texto,
+        autor,
+        userId,
+        commentId,
+      },
+    });
+
+    res.json(reply);
+  } catch (error) {
+    console.error("Erro ao adicionar resposta:", error);
+
+    res.status(500).json({
+      error: "Erro ao adicionar resposta",
+      details: error.message,
+    });
+  }
+};
+
+// UPDATE REPLY
+export const updateReply = async (req, res) => {
+  try {
+    const replyId = Number(req.params.replyId);
+    const userId = Number(req.user?.id);
+
+    const { texto } = req.body;
+
+    const reply = await prisma.reply.findUnique({
+      where: {
+        id: replyId,
+      },
+    });
 
     if (!reply) {
       return res.status(404).json({
@@ -187,54 +227,71 @@ export const updateReply = (req, res) => {
       });
     }
 
-    reply.texto = texto;
-    reply.updatedAt = new Date();
+    if (reply.userId !== userId) {
+      return res.status(403).json({
+        error: "Você não tem permissão para editar esta resposta",
+      });
+    }
 
-    res.json(reply);
-  } catch {
+    const updated = await prisma.reply.update({
+      where: {
+        id: replyId,
+      },
+      data: {
+        texto,
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Erro ao atualizar resposta:", error);
+
     res.status(500).json({
       error: "Erro ao atualizar resposta",
+      details: error.message,
     });
   }
 };
 
-// DELETE reply
-export const deleteReply = (req, res) => {
+// DELETE REPLY
+export const deleteReply = async (req, res) => {
   try {
-    const { occurrenceId, commentId, replyId } = req.params;
+    const replyId = Number(req.params.replyId);
+    const userId = Number(req.user?.id);
 
-    const comments = commentsByOccurrence[occurrenceId];
+    const reply = await prisma.reply.findUnique({
+      where: {
+        id: replyId,
+      },
+    });
 
-    if (!comments) {
-      return res.status(404).json({
-        error: "Ocorrência não encontrada",
-      });
-    }
-
-    const comment = comments.find((c) => c.id === commentId);
-
-    if (!comment) {
-      return res.status(404).json({
-        error: "Comentário não encontrado",
-      });
-    }
-
-    const index = comment.replies.findIndex((r) => r.id === replyId);
-
-    if (index === -1) {
+    if (!reply) {
       return res.status(404).json({
         error: "Resposta não encontrada",
       });
     }
 
-    comment.replies.splice(index, 1);
+    if (reply.userId !== userId) {
+      return res.status(403).json({
+        error: "Você não tem permissão para deletar esta resposta",
+      });
+    }
+
+    await prisma.reply.delete({
+      where: {
+        id: replyId,
+      },
+    });
 
     res.json({
       message: "Resposta deletada com sucesso",
     });
-  } catch {
+  } catch (error) {
+    console.error("Erro ao deletar resposta:", error);
+
     res.status(500).json({
       error: "Erro ao deletar resposta",
+      details: error.message,
     });
   }
 };
