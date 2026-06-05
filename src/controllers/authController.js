@@ -143,6 +143,8 @@ export const getUser = async (req, res) => {
       id: user.id,
       nome: user.nome,
       email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
     });
   } catch (error) {
     console.error("Erro ao buscar usuário:", error);
