@@ -316,8 +316,8 @@ export const deleteOccurrence = async (req, res) => {
 // LIKE / UNLIKE
 export const toggleLike = async (req, res) => {
   try {
-    const id = req.params.id;
-    const userId = req.user?.id || req.body.userId;
+    const occurrenceId = Number(req.params.id);
+    const userId = Number(req.user?.id || req.body.userId);
 
     if (!userId) {
       return res.status(400).json({
@@ -325,72 +325,67 @@ export const toggleLike = async (req, res) => {
       });
     }
 
-    if (useMock) {
-      const occurrence = occurrences.find((o) => String(o.id) === String(id));
+    const occurrence = await prisma.occurrence.findUnique({
+      where: {
+        id: occurrenceId,
+      },
+    });
 
-      if (!occurrence) {
-        return res.status(404).json({
-          error: "Ocorrência não encontrada",
-        });
-      }
-
-      if (!occurrence.likedBy) occurrence.likedBy = [];
-
-      const alreadyLiked = occurrence.likedBy.includes(userId);
-
-      if (alreadyLiked) {
-        occurrence.likedBy = occurrence.likedBy.filter((uid) => uid !== userId);
-      } else {
-        occurrence.likedBy.push(userId);
-      }
-
-      return res.json({
-        likes: occurrence.likedBy.length,
-        liked: !alreadyLiked,
-        likedBy: occurrence.likedBy,
+    if (!occurrence) {
+      return res.status(404).json({
+        error: "Ocorrência não encontrada",
       });
     }
 
-    const occurrenceId = Number(id);
-    const numericUserId = Number(userId);
-
-    // Check if user already liked this occurrence
-    const existingLike = await prisma.like.findUnique({
+    const existingLike = await prisma.occurrenceLike.findUnique({
       where: {
         userId_occurrenceId: {
-          userId: numericUserId,
+          userId,
           occurrenceId,
         },
       },
     });
 
+    let liked = false;
+
     if (existingLike) {
-      // Unlike
-      await prisma.like.delete({
-        where: { id: existingLike.id },
+      await prisma.occurrenceLike.delete({
+        where: {
+          id: existingLike.id,
+        },
       });
+
+      liked = false;
     } else {
-      // Like
-      await prisma.like.create({
+      await prisma.occurrenceLike.create({
         data: {
-          userId: numericUserId,
+          userId,
           occurrenceId,
         },
       });
+
+      liked = true;
     }
 
-    // Get updated counts
-    const allLikes = await prisma.like.findMany({
-      where: { occurrenceId },
-      select: { userId: true },
+    const likes = await prisma.occurrenceLike.count({
+      where: {
+        occurrenceId,
+      },
     });
 
-    const likedBy = allLikes.map((l) => l.userId);
+    const likedByRows = await prisma.occurrenceLike.findMany({
+      where: {
+        occurrenceId,
+      },
+      select: {
+        userId: true,
+      },
+    });
 
     return res.json({
-      likes: likedBy.length,
-      liked: !existingLike,
-      likedBy,
+      likes,
+      liked,
+      likedBy: likedByRows.map((like) => like.userId),
     });
   } catch (error) {
     console.error("Erro ao curtir ocorrência:", error);
