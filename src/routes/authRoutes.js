@@ -13,6 +13,7 @@ import { requireAdmin } from "../middlewares/requireAdmin.js";
 
 import adminUsersRoutes from "./admin/users.routes.js";
 import adminOccurrencesRoutes from "./admin/occurrences.routes.js";
+import adminCommentsRoutes from "./admin/comments.routes.js";
 
 const router = Router();
 
@@ -38,6 +39,13 @@ router.use(
   authMiddleware,
   requireAdmin,
   adminOccurrencesRoutes,
+);
+
+router.use(
+  "/admin/comments",
+  authMiddleware,
+  requireAdmin,
+  adminCommentsRoutes,
 );
 
 export default router;
